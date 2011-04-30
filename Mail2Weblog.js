@@ -101,7 +101,7 @@ if (args[1] != null && args[2] != null && args[3] != null && args[4] != null) {
          if (text) {
             writeln("Create posting with subject: " + message.getSubject());
             client.newPost("hipstagraphy", blogUsername, blogPassword, {
-               "title": message.getSubject(),
+               "title": (message.getSubject() || ""),
                "description": text,
                "categories": message.getFrom().map(function(item) {
                      if (item instanceof javax.mail.internet.InternetAddress) {
