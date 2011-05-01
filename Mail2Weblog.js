@@ -7,16 +7,20 @@ include("system");
 var {Stream, MemoryStream} = require("io"),
 {ByteArray} = require("binary"),
 base64  = require("ringo/base64"),
-{MetaWeblogClient} = require("./MetaWeblogClient");
+{MetaWeblogClient} = require("./MetaWeblogClient"),
+graph = require("./FacebookApi");
 
 
 /* Init bot */
-if (args[1] != null && args[2] != null && args[3] != null && args[4] != null) {
+if (args[1] != null && args[2] != null && args[3] != null && args[4] != null && args[5] != null && args[6] != null) {
    var emailUsername = args[1];
    var emailPassword = args[2];
    
    var blogUsername = args[3];
    var blogPassword = args[4];
+
+   var fbAccessToken = args[5];
+   var fbProfileId   = args[6];
 
    var props = java.lang.System.getProperties();
    props.setProperty("mail.store.protocol", "imaps");
@@ -100,15 +104,36 @@ if (args[1] != null && args[2] != null && args[3] != null && args[4] != null) {
          var text = parseMultipart(content);
          if (text) {
             writeln("Create posting with subject: " + message.getSubject());
-            client.newPost("hipstagraphy", blogUsername, blogPassword, {
+            var author = message.getFrom().map(function(item) {
+                  if (item instanceof javax.mail.internet.InternetAddress) {
+                     return (item.getPersonal() || "martin").toLowerCase().replace(/\s*/g, "");
+                  }
+               }).join(" ");
+            
+            var pid = client.newPost("hipstagraphy", blogUsername, blogPassword, {
                "title": (message.getSubject() || ""),
                "description": text,
-               "categories": message.getFrom().map(function(item) {
-                     if (item instanceof javax.mail.internet.InternetAddress) {
-                        return (item.getPersonal() || "martin").toLowerCase().replace(/\s*/g, "");
-                     }
-                  }).join(" ")
+               "categories": author
                }, true);
+            
+            writeln("Got posting#" + pid + " back from Antville API.");
+            
+            if (pid > 0) {
+               // Post link on the Facebook fanpage
+               var msgText = "A new photo has been posted";
+               if (message.getSubject()) {
+                  msgText += ": " + message.getSubject();
+               }
+               
+               msgText += " by " + author;
+               
+               graph.postLink(
+                     fbAccessToken,
+                     fbProfileId,
+                     "http://hipstagraphy.antville.org/stories/" + pid + "/",
+                     msgText
+               );
+            }
          }
       }
    

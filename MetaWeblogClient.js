@@ -41,6 +41,7 @@ exports.MetaWeblogClient = function MetaWeblogClient(apiEndpoint) {
          	</params> \
          </methodCall>";
    
+      var pid = -1;
       Client.request({
          "url": apiEndpoint,
          "method": "POST",
@@ -49,13 +50,14 @@ exports.MetaWeblogClient = function MetaWeblogClient(apiEndpoint) {
          "async": false,
          "binary": false,
          "success": function(data) {
-            writeln("Success. "+ data);
-            return 12345;
+            pid = parseInt(data.match(/<value>(\d{7,})<\/value>/)[1], 10);
+            writeln("Success. Posting-ID is " + pid + " Response: " + data);
          },
          "error": function() {
-            return -1;
+            pid = -1;
          }
       });
+      return pid;
    };
 
    /**
@@ -105,6 +107,7 @@ exports.MetaWeblogClient = function MetaWeblogClient(apiEndpoint) {
          	</params> \
          </methodCall>";
    
+      var imgUrl = null;
       Client.request({
          "url": apiEndpoint,
          "method": "POST",
@@ -113,12 +116,13 @@ exports.MetaWeblogClient = function MetaWeblogClient(apiEndpoint) {
          "async": false,
          "binary": false,
          "success": function(data) {
-            writeln("Success. "+ data);
-            return 12345;
+            imgUrl = data.match(/<value>(http:\/\/.*\.jpg)<\/value>/)[1];
+            writeln("Success. Image-URL: " + imgUrl + " Response: "+ data);
          },
-         "error": function() {
-            return -1;
+         "error": function(data) {
+            writeln("Image Upload error: " + data);
          }
       });
+      return imgUrl;
    };
 };
