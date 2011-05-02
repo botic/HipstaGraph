@@ -35,6 +35,11 @@ if (args[1] != null && args[2] != null && args[3] != null && args[4] != null && 
    var client = new MetaWeblogClient("http://antville.org/api/");
 
    var parseMultipart = function(multipart) {
+      var msgData = {
+         cameraConfig: {},
+         text: undefined
+      };
+      
       for (var i = 0; i < multipart.getCount(); i++) {
          var bodyPart = multipart.getBodyPart(i);
          var disp = bodyPart.getDisposition();
@@ -45,7 +50,22 @@ if (args[1] != null && args[2] != null && args[3] != null && args[4] != null && 
             // inline
             if (bodyPart.isMimeType("text/plain")) {
                // Append text
-               // IGNORE textParts.push(bodyPart.getContent());
+               var msgContent = bodyPart.getContent();
+               
+               var lens, flash, film;
+               if ((lens = msgContent.match(/Lens: (.+)/))) {
+                  msgData.cameraConfig.lens  = lens[1];
+               }
+               
+               if ((flash = msgContent.match(/Flash: (.+)/))) {
+                  msgData.cameraConfig.flash = flash[1];
+               }
+               
+               if ((film = msgContent.match(/Film: (.+)/))) {
+                  msgData.cameraConfig.film = film[1];
+               }
+               
+               writeln("Parsed hipsta metadata: " + JSON.stringify(msgData.cameraConfig));
             } else {
                if (bodyPart.isMimeType("image/jpeg")) {
                   var inStream = new Stream(bodyPart.getInputStream());
@@ -76,7 +96,7 @@ if (args[1] != null && args[2] != null && args[3] != null && args[4] != null && 
                         "bits": base64.encode(outStream.content),
                         "maxWidth": 500
                      });
-                     return "&lt;% image '" + imgName + "' %&gt;";
+                     msgData.text = "&lt;% image '" + imgName + "' %&gt;";
                   } else {
                      writeln("Not from Hipstamatic --> Drop.");
                      return null;
@@ -86,6 +106,8 @@ if (args[1] != null && args[2] != null && args[3] != null && args[4] != null && 
          
          }
       }
+      
+      return msgData;
    };
 
    //var messages = inbox.getMessages();
@@ -101,20 +123,31 @@ if (args[1] != null && args[2] != null && args[3] != null && args[4] != null && 
       if (content instanceof java.lang.String) {
          // do nothing
       } else if (content instanceof javax.mail.Multipart) {
-         var text = parseMultipart(content);
-         if (text) {
+         var msgData = parseMultipart(content);
+         if (msgData.text) {
             writeln("Create posting with subject: " + message.getSubject());
+            var tags = "";
             var author = message.getFrom().map(function(item) {
                   if (item instanceof javax.mail.internet.InternetAddress) {
                      return (item.getPersonal() || "martin").toLowerCase().replace(/\s*/g, "");
                   }
                }).join(" ");
             
+            if (msgData.cameraConfig.lens) {
+               tags += ", lens" + msgData.cameraConfig.lens.replace(/\s+|,/g, "");
+            }
+            if (msgData.cameraConfig.film) {
+               tags += ", film" + msgData.cameraConfig.film.replace(/\s+|,/g, "");
+            }
+            if (msgData.cameraConfig.flash) {
+               tags += ", flash" + msgData.cameraConfig.flash.replace(/\s+|,/g, "");
+            }
+            
             var pid = client.newPost("hipstagraphy", blogUsername, blogPassword, {
                "title": (message.getSubject() || ""),
-               "description": text,
-               "categories": author
-               }, true);
+               "description": msgData.text,
+               "categories": author + tags
+            }, true);
             
             writeln("Got posting#" + pid + " back from Antville API.");
             
