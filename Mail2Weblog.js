@@ -116,62 +116,67 @@ if (args[1] != null && args[2] != null && args[3] != null && args[4] != null && 
    
    for(var i = 0; i < 10 && i < messages.length; i++) {
       var message = messages[i];
-      var content = message.getContent();
       
-      writeln("Processing message #"+i);
+      try {
+         var content = message.getContent();
       
-      if (content instanceof java.lang.String) {
-         // do nothing
-      } else if (content instanceof javax.mail.Multipart) {
-         var msgData = parseMultipart(content);
-         if (msgData.text) {
-            writeln("Create posting with subject: " + message.getSubject());
-            var tags = "";
-            var author = message.getFrom().map(function(item) {
-                  if (item instanceof javax.mail.internet.InternetAddress) {
-                     return (item.getPersonal() || "martin").toLowerCase().replace(/\s*/g, "");
-                  }
-               }).join(" ");
+         writeln("Processing message #"+i);
+      
+         if (content instanceof java.lang.String) {
+            // do nothing
+         } else if (content instanceof javax.mail.Multipart) {
+            var msgData = parseMultipart(content);
+            if (msgData.text) {
+               writeln("Create posting with subject: " + message.getSubject());
+               var tags = "";
+               var author = message.getFrom().map(function(item) {
+                     if (item instanceof javax.mail.internet.InternetAddress) {
+                        return (item.getPersonal() || "martin").toLowerCase().replace(/\s*/g, "");
+                     }
+                  }).join(" ");
             
-            if (msgData.cameraConfig.lens) {
-               tags += ", lens" + msgData.cameraConfig.lens.replace(/\s+|,/g, "");
-            }
-            if (msgData.cameraConfig.film) {
-               tags += ", film" + msgData.cameraConfig.film.replace(/\s+|,/g, "");
-            }
-            if (msgData.cameraConfig.flash) {
-               tags += ", flash" + msgData.cameraConfig.flash.replace(/\s+|,/g, "");
-            }
-            
-            var pid = client.newPost("hipstagraphy", blogUsername, blogPassword, {
-               "title": (message.getSubject() || ""),
-               "description": msgData.text,
-               "categories": author + tags
-            }, true);
-            
-            writeln("Got posting#" + pid + " back from Antville API.");
-            
-            if (pid > 0) {
-               // Post link on the Facebook fanpage
-               var msgText = "A new photo has been posted";
-               if (message.getSubject()) {
-                  msgText += ": " + message.getSubject();
+               if (msgData.cameraConfig.lens) {
+                  tags += ", lens" + msgData.cameraConfig.lens.replace(/\s+|,/g, "");
                }
+               if (msgData.cameraConfig.film) {
+                  tags += ", film" + msgData.cameraConfig.film.replace(/\s+|,/g, "");
+               }
+               if (msgData.cameraConfig.flash) {
+                  tags += ", flash" + msgData.cameraConfig.flash.replace(/\s+|,/g, "");
+               }
+            
+               var pid = client.newPost("hipstagraphy", blogUsername, blogPassword, {
+                  "title": (message.getSubject() || ""),
+                  "description": msgData.text,
+                  "categories": author + tags
+               }, true);
+            
+               writeln("Got posting#" + pid + " back from Antville API.");
+            
+               if (pid > 0) {
+                  // Post link on the Facebook fanpage
+                  var msgText = "A new photo has been posted";
+                  if (message.getSubject()) {
+                     msgText += ": " + message.getSubject();
+                  }
                
-               msgText += " by " + author;
+                  msgText += " by " + author;
                
-               graph.postLink(
-                     fbAccessToken,
-                     fbProfileId,
-                     "http://hipstagraphy.antville.org/stories/" + pid + "/",
-                     msgText
-               );
+                  graph.postLink(
+                        fbAccessToken,
+                        fbProfileId,
+                        "http://hipstagraphy.antville.org/stories/" + pid + "/",
+                        msgText
+                  );
+               }
             }
          }
-      }
    
-      if (!message.isSet(javax.mail.Flags.Flag.SEEN)) {
-         message.setFlag(javax.mail.Flags.Flag.SEEN, true);
+         if (!message.isSet(javax.mail.Flags.Flag.SEEN)) {
+            message.setFlag(javax.mail.Flags.Flag.SEEN, true);
+         }
+      } catch (err) {
+         writeln("Error: " + err);
       }
    }
 }
